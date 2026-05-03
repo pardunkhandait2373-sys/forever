@@ -47,13 +47,14 @@ const placeOrder = async (req,res) => {
 const placeOrderUPI = async (req,res) => {
     try {
         
-        const { userId, items, amount, address} = req.body;
+        const { userId, items, amount, address, upiId} = req.body;
 
         const orderData = {
             userId,
             items,
             address,
             amount,
+            upiId,
             paymentMethod:"UPI",
             payment:true,
             date: Date.now()

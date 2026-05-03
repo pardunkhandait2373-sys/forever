@@ -9,7 +9,8 @@ import { toast } from 'react-toastify'
 const PlaceOrder = () => {
 
     const [method, setMethod] = useState('cod');
-    const { navigate, backendUrl, token, cartItems, setCartItems, getCartAmount, delivery_fee, products } = useContext(ShopContext);
+    const [upiId, setUpiId] = useState('');
+    const { navigate, backendUrl, token, cartItems, setCartItems, getCartAmount, delivery_fee, products, currency } = useContext(ShopContext);
     const [formData, setFormData] = useState({
         firstName: '',
         lastName: '',
@@ -26,6 +27,10 @@ const PlaceOrder = () => {
         const name = event.target.name
         const value = event.target.value
         setFormData(data => ({ ...data, [name]: value }))
+    }
+
+    const onMethodChange = (selectedMethod) => {
+        setMethod(selectedMethod)
     }
 
     const initPay = (order) => {
@@ -78,7 +83,8 @@ const PlaceOrder = () => {
             let orderData = {
                 address: formData,
                 items: orderItems,
-                amount: getCartAmount() + delivery_fee
+                amount: getCartAmount() + delivery_fee,
+                ...(method === 'upi' ? { upiId: upiId.trim() } : {})
             }
             
 
@@ -96,8 +102,14 @@ const PlaceOrder = () => {
                     break;
 
                 case 'upi':
+                    if (!/^[\w.-]+@[\w.-]+$/.test(upiId.trim())) {
+                        toast.error('Enter a valid UPI ID')
+                        return
+                    }
+
                     const responseUPI = await axios.post(backendUrl + '/api/order/upi',orderData,{headers:{token}})
                     if (responseUPI.data.success) {
+                        toast.success('Payment Successful')
                         setCartItems({})
                         navigate('/orders')
                     } else {
@@ -162,19 +174,42 @@ const PlaceOrder = () => {
                     <Title text1={'PAYMENT'} text2={'METHOD'} />
                     {/* --------------- Payment Method Selection ------------- */}
                     <div className='flex gap-3 flex-col lg:flex-row'>
-                        <div onClick={() => setMethod('upi')} className='flex items-center gap-3 border p-2 px-3 cursor-pointer'>
+                        <div onClick={() => onMethodChange('upi')} className='flex items-center gap-3 border p-2 px-3 cursor-pointer'>
                             <p className={`min-w-3.5 h-3.5 border rounded-full ${method === 'upi' ? 'bg-green-400' : ''}`}></p>
                             <p className='text-gray-500 text-sm font-medium mx-4'>UPI</p>
                         </div>
-                        <div onClick={() => setMethod('razorpay')} className='flex items-center gap-3 border p-2 px-3 cursor-pointer'>
+                        <div onClick={() => onMethodChange('razorpay')} className='flex items-center gap-3 border p-2 px-3 cursor-pointer'>
                             <p className={`min-w-3.5 h-3.5 border rounded-full ${method === 'razorpay' ? 'bg-green-400' : ''}`}></p>
                             <img className='h-5 mx-4' src={assets.razorpay_logo} alt="" />
                         </div>
-                        <div onClick={() => setMethod('cod')} className='flex items-center gap-3 border p-2 px-3 cursor-pointer'>
+                        <div onClick={() => onMethodChange('cod')} className='flex items-center gap-3 border p-2 px-3 cursor-pointer'>
                             <p className={`min-w-3.5 h-3.5 border rounded-full ${method === 'cod' ? 'bg-green-400' : ''}`}></p>
                             <p className='text-gray-500 text-sm font-medium mx-4'>CASH ON DELIVERY</p>
                         </div>
                     </div>
+
+                    {method === 'upi' && (
+                        <div className='mt-4 flex flex-col gap-3 border p-4'>
+                            <input
+                                required
+                                value={upiId}
+                                onChange={(event) => setUpiId(event.target.value)}
+                                className='border border-gray-300 rounded py-2 px-3 w-full'
+                                type='text'
+                                placeholder='Enter UPI ID'
+                            />
+                            <div className='flex flex-col gap-2 text-sm text-gray-700'>
+                                <div className='flex justify-between'>
+                                    <p>Shipping Fee</p>
+                                    <p>{currency} {delivery_fee}.00</p>
+                                </div>
+                                <div className='flex justify-between font-medium text-black'>
+                                    <p>UPI Payable Amount</p>
+                                    <p>{currency} {getCartAmount() === 0 ? 0 : getCartAmount() + delivery_fee}.00</p>
+                                </div>
+                            </div>
+                        </div>
+                    )}
 
                     <div className='w-full text-end mt-8'>
                         <button type='submit' className='bg-black text-white px-16 py-3 text-sm'>PLACE ORDER</button>
